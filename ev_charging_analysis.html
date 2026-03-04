@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Energy Market Drivers of EV Charging Prices | John Brassard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:         #0a0e1a;
+    --surface:    #111827;
+    --surface2:   #1a2235;
+    --border:     #1e2d45;
+    --accent:     #00d4aa;
+    --accent2:    #3b82f6;
+    --accent3:    #f59e0b;
+    --text:       #e2e8f0;
+    --muted:      #64748b;
+    --danger:     #ef4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ---- GRID BACKGROUND ---- */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ---- NAV ---- */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 3rem;
+    background: rgba(10,14,26,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-brand {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--accent); }
+
+  /* ---- HERO ---- */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8rem 3rem 4rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    z-index: 1;
+  }
+
+  .hero-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.1s forwards;
+  }
+
+  .hero h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2.8rem, 6vw, 5rem);
+    line-height: 1.1;
+    font-weight: 400;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.2s forwards;
+  }
+
+  .hero h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    font-size: 1.1rem;
+    color: var(--muted);
+    max-width: 580px;
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.3s forwards;
+  }
+
+  .hero-meta {
+    display: flex;
+    gap: 3rem;
+    flex-wrap: wrap;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.4s forwards;
+  }
+
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .meta-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+
+  .meta-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 1rem;
+    color: var(--text);
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 2.5rem;
+    left: 3rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.8s forwards;
+  }
+
+  .scroll-line {
+    width: 40px;
+    height: 1px;
+    background: var(--muted);
+    animation: expandLine 1.2s 1.2s ease forwards;
+    transform-origin: left;
+    transform: scaleX(0);
+  }
+
+  @keyframes expandLine { to { transform: scaleX(1); } }
+
+  /* ---- STAT BAR ---- */
+  .stat-bar {
+    position: relative;
+    z-index: 1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 2rem 3rem;
+  }
+
+  .stat-bar-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--accent);
+  }
+
+  .stat-number {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.2rem;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-desc {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* ---- SECTIONS ---- */
+  section {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 5rem 3rem;
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+  }
+
+  .section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.2rem;
+    font-weight: 400;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+  }
+
+  .section-intro {
+    color: var(--muted);
+    max-width: 620px;
+    margin-bottom: 3rem;
+    font-size: 0.95rem;
+  }
+
+  /* ---- CHART CARDS ---- */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .chart-grid.full { grid-template-columns: 1fr; }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 1.8rem;
+    transition: border-color 0.2s;
+  }
+
+  .chart-card:hover { border-color: var(--accent); }
+
+  .chart-card-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .chart-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.3rem;
+  }
+
+  .chart-subtitle {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .chart-wrap {
+    position: relative;
+    height: 260px;
+  }
+
+  .chart-wrap.tall { height: 320px; }
+
+  /* ---- FINDINGS ---- */
+  .findings-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  .finding-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 1.8rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .finding-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .finding-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s;
+  }
+
+  .finding-card:hover::before { transform: scaleX(1); }
+
+  .finding-number {
+    font-family: 'DM Serif Display', serif;
+    font-size: 3rem;
+    color: var(--accent);
+    opacity: 0.25;
+    position: absolute;
+    top: 1rem; right: 1.5rem;
+    line-height: 1;
+  }
+
+  .finding-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .finding-body {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ---- MODEL TABLE ---- */
+  .model-table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+
+  thead tr {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    padding: 1rem 1.5rem;
+    text-align: left;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  td {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover { background: var(--surface2); }
+
+  .best-model td { color: var(--accent); }
+
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    background: rgba(0,212,170,0.1);
+    border: 1px solid rgba(0,212,170,0.3);
+    border-radius: 2px;
+    font-size: 0.65rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ---- METHODOLOGY ---- */
+  .method-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .method-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 1.8rem;
+  }
+
+  .method-card h4 {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+
+  .method-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .method-card ul li {
+    font-size: 0.82rem;
+    color: var(--muted);
+    padding-left: 1rem;
+    position: relative;
+  }
+
+  .method-card ul li::before {
+    content: '>';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ---- FOOTER ---- */
+  footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 2rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 100%;
+  }
+
+  footer p {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 2rem;
+  }
+
+  .footer-links a {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover { color: var(--accent); }
+
+  /* ---- ANIMATIONS ---- */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ---- DIVIDER ---- */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0;
+  }
+
+  /* ---- RESPONSIVE ---- */
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .hero { padding: 7rem 1.5rem 3rem; }
+    .hero h1 { font-size: 2.4rem; }
+    .stat-bar { padding: 1.5rem; }
+    .stat-bar-inner { grid-template-columns: 1fr 1fr; }
+    section { padding: 3rem 1.5rem; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .findings-grid { grid-template-columns: 1fr; }
+    .method-grid { grid-template-columns: 1fr; }
+    footer { flex-direction: column; gap: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <span class="nav-brand">John Brassard / Research</span>
+  <ul class="nav-links">
+    <li><span style="color:var(--muted);font-size:0.8rem;letter-spacing:0.08em;font-family:'DM Mono',monospace;">Energy Market Drivers of EV Charging Prices</span></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <p class="hero-tag">Independent Research &nbsp;/&nbsp; 2024</p>
+  <h1>Energy Market Drivers<br>of <em>EV Charging</em> Prices</h1>
+  <p class="hero-sub">A state-level panel data analysis examining how electricity market structure, seasonal demand, and macroeconomic factors shape EV charging costs across the United States.</p>
+  <div class="hero-meta">
+    <div class="meta-item">
+      <span class="meta-label">Tool</span>
+      <span class="meta-value">R Studio</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Method</span>
+      <span class="meta-value">OLS Regression</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Data Sources</span>
+      <span class="meta-value">EIA &amp; FRED APIs</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Coverage</span>
+      <span class="meta-value">50 States / 36 Months</span>
+    </div>
+  </div>
+  <div class="scroll-hint">
+    <span class="scroll-line"></span>
+    Scroll to explore
+  </div>
+</div>
+
+<!-- STAT BAR -->
+<div class="stat-bar">
+  <div class="stat-bar-inner">
+    <div class="stat reveal">
+      <span class="stat-number">1,800</span>
+      <span class="stat-desc">Panel observations<br>50 states x 36 months</span>
+    </div>
+    <div class="stat reveal">
+      <span class="stat-number">0.43</span>
+      <span class="stat-desc">Adjusted R&sup2; — best model<br>market structure + demand</span>
+    </div>
+    <div class="stat reveal">
+      <span class="stat-number">&lt;1%</span>
+      <span class="stat-desc">Variation explained by<br>commodity prices alone</span>
+    </div>
+    <div class="stat reveal">
+      <span class="stat-number">167.81</span>
+      <span class="stat-desc">F-statistic (p &lt; 0.001)<br>full model significance</span>
+    </div>
+  </div>
+</div>
+
+<!-- FINDINGS -->
+<section id="findings">
+  <p class="section-label reveal">Key Findings</p>
+  <h2 class="section-title reveal">What actually drives<br>EV charging prices?</h2>
+  <p class="section-intro reveal">Three models were estimated with progressively richer specifications. The results challenge the intuitive assumption that oil and gas prices are the primary driver of EV charging costs.</p>
+
+  <div class="findings-grid">
+    <div class="finding-card reveal">
+      <span class="finding-number">01</span>
+      <h3 class="finding-title">Commodity prices explain almost nothing</h3>
+      <p class="finding-body">WTI oil prices, natural gas prices, and CPI inflation together explain less than 1% of state-level electricity price variation (Adj. R&sup2; = 0.01). The link between crude oil and EV charging costs is far weaker than commonly assumed.</p>
+    </div>
+    <div class="finding-card reveal">
+      <span class="finding-number">02</span>
+      <h3 class="finding-title">Demand and seasonality are the dominant drivers</h3>
+      <p class="finding-body">Adding per-capita electricity consumption and seasonal controls jumps explanatory power to 40% (Adj. R&sup2; = 0.40). Summer and winter demand surges drive electricity prices up significantly more than global commodity movements.</p>
+    </div>
+    <div class="finding-card reveal">
+      <span class="finding-number">03</span>
+      <h3 class="finding-title">Market structure adds meaningful signal</h3>
+      <p class="finding-body">Whether a state has a regulated or deregulated electricity market adds incremental explanatory power, pushing the model to Adj. R&sup2; = 0.43. Deregulated markets show distinct pricing dynamics compared to regulated utility states.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- CHARTS -->
+<section id="charts">
+  <p class="section-label reveal">Visual Analysis</p>
+  <h2 class="section-title reveal">Exploring the data</h2>
+  <p class="section-intro reveal">Interactive charts built from the panel dataset. Hover over data points for details.</p>
+
+  <div class="chart-grid reveal">
+    <!-- Chart 1: Avg electricity price by state (top 20) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <p class="chart-title">Average Electricity Price by State</p>
+        <p class="chart-subtitle">Residential cents/kWh — top and bottom 10 states (2021-2023)</p>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="statePriceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 2: Model comparison -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <p class="chart-title">Model Performance Comparison</p>
+        <p class="chart-subtitle">Adjusted R&sup2; as variables are added to the model</p>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="modelCompChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-grid reveal">
+    <!-- Chart 3: Electricity price by season -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <p class="chart-title">Electricity Price by Season</p>
+        <p class="chart-subtitle">Average residential price (cents/kWh) across seasons</p>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="seasonChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 4: Market type comparison -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <p class="chart-title">Regulated vs. Deregulated Markets</p>
+        <p class="chart-subtitle">Average electricity price by market structure</p>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="marketChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 5: EA price by state tier -->
+  <div class="chart-grid full reveal">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <p class="chart-title">Electrify America Charging Price vs. State Grid Price</p>
+        <p class="chart-subtitle">Each bar = one state. EA pass member rate ($/kWh) vs. average residential grid price (cents/kWh)</p>
+      </div>
+      <div class="chart-wrap tall">
+        <canvas id="eaPriceChart"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- MODEL TABLE -->
+<section id="models">
+  <p class="section-label reveal">Regression Results</p>
+  <h2 class="section-title reveal">Model progression</h2>
+  <p class="section-intro reveal">Three OLS models estimated on 1,800 state-month observations. Each model adds variables to isolate the incremental contribution of different factors.</p>
+
+  <div class="model-table-wrap reveal">
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Variables Included</th>
+          <th>Adj. R&sup2;</th>
+          <th>F-Statistic</th>
+          <th>AIC</th>
+          <th>Obs.</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>M1</td>
+          <td>WTI oil, natural gas, CPI inflation</td>
+          <td>0.010</td>
+          <td>6.80</td>
+          <td>11,476</td>
+          <td>1,800</td>
+          <td>Macro only baseline</td>
+        </tr>
+        <tr>
+          <td>M2</td>
+          <td>M1 + per-capita consumption, seasonality</td>
+          <td>0.401</td>
+          <td>173.34</td>
+          <td>10,574</td>
+          <td>1,800</td>
+          <td>Large improvement (+902 AIC)</td>
+        </tr>
+        <tr class="best-model">
+          <td>M3 <span class="badge">Best Fit</span></td>
+          <td>M2 + market structure (regulated/deregulated)</td>
+          <td>0.426</td>
+          <td>167.81</td>
+          <td>10,500</td>
+          <td>1,800</td>
+          <td>Lowest AIC, highest R&sup2;</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- METHODOLOGY -->
+<section id="methodology">
+  <p class="section-label reveal">Methodology</p>
+  <h2 class="section-title reveal">How the analysis<br>was constructed</h2>
+  <p class="section-intro reveal">All data was sourced from public government APIs and official publications. No data was manually estimated or interpolated.</p>
+
+  <div class="method-grid reveal">
+    <div class="method-card">
+      <h4>Data Sources</h4>
+      <ul>
+        <li>EIA API v2: monthly residential electricity prices + sales by state</li>
+        <li>FRED API: WTI crude oil price (WTISPLC), monthly 2021-2023</li>
+        <li>FRED API: Henry Hub natural gas spot price (MHHNGSP)</li>
+        <li>FRED API: CPI (CPIAUCSL) — YoY inflation rate computed</li>
+        <li>U.S. Census Bureau: 2020 state population for per-capita calc</li>
+        <li>Electrify America: public pass member pricing by state</li>
+      </ul>
+    </div>
+    <div class="method-card">
+      <h4>Variables</h4>
+      <ul>
+        <li>Dependent: state residential electricity price (cents/kWh)</li>
+        <li>WTI crude oil price ($/barrel)</li>
+        <li>Henry Hub natural gas price ($/MMBtu)</li>
+        <li>Year-over-year CPI inflation rate (%)</li>
+        <li>Per-capita electricity consumption (kWh/resident)</li>
+        <li>Season (Winter / Spring / Summer / Fall)</li>
+        <li>Market structure (regulated vs. deregulated)</li>
+      </ul>
+    </div>
+    <div class="method-card">
+      <h4>Econometric Approach</h4>
+      <ul>
+        <li>OLS regression with heteroskedasticity-robust standard errors (HC3)</li>
+        <li>Two-way panel fixed effects tested (state FE + time FE)</li>
+        <li>Panel FE dropped: EA price has no within-state time variation</li>
+        <li>Model selection via AIC (Akaike Information Criterion)</li>
+        <li>Progressive variable addition to isolate marginal contributions</li>
+        <li>All models estimated on balanced panel: n=50, T=36, N=1,800</li>
+      </ul>
+    </div>
+    <div class="method-card">
+      <h4>Tools Used</h4>
+      <ul>
+        <li>R Studio — primary analysis environment</li>
+        <li>tidyverse — data wrangling and pipeline</li>
+        <li>fredr — FRED API integration</li>
+        <li>httr / jsonlite — EIA API calls</li>
+        <li>plm — panel data modeling</li>
+        <li>lmtest / sandwich — robust standard errors</li>
+        <li>ggplot2 — data visualization</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>John Brassard &nbsp;/&nbsp; Economics &nbsp;/&nbsp; Georgia Southern University 2023</p>
+  <div class="footer-links">
+    <a href="mailto:johnb0903@gmail.com">johnb0903@gmail.com</a>
+    <a href="https://linkedin.com/in/johnbrassard" target="_blank">LinkedIn</a>
+  </div>
+</footer>
+
+<script>
+// ---- CHART DEFAULTS ----
+Chart.defaults.color = '#64748b';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const accent  = '#00d4aa';
+const accent2 = '#3b82f6';
+const accent3 = '#f59e0b';
+const surface = '#1a2235';
+const border  = '#1e2d45';
+const muted   = '#64748b';
+
+// ---- CHART 1: STATE ELECTRICITY PRICES ----
+const stateData = {
+  labels: ['HI','CT','MA','RI','NH','CA','NY','VT','ME','NJ',
+           'WY','ND','UT','ID','MT','NE','IA','KS','OK','AR'],
+  prices: [37.0,24.0,22.5,22.0,20.3,24.1,20.3,18.9,21.3,17.2,
+           10.9,10.7,10.9,10.6,11.2,10.9,11.2,12.4,11.4,11.3]
+};
+
+new Chart(document.getElementById('statePriceChart'), {
+  type: 'bar',
+  data: {
+    labels: stateData.labels,
+    datasets: [{
+      data: stateData.prices,
+      backgroundColor: stateData.prices.map(v =>
+        v > 20 ? accent : v < 12 ? accent2 : muted + '80'
+      ),
+      borderRadius: 2,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.raw} cents/kWh`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { color: border }, ticks: { font: { size: 9 } } },
+      y: {
+        grid: { color: border },
+        ticks: { callback: v => v + '¢' }
+      }
+    }
+  }
+});
+
+// ---- CHART 2: MODEL COMPARISON ----
+new Chart(document.getElementById('modelCompChart'), {
+  type: 'bar',
+  data: {
+    labels: ['M1: Macro Only\n(Oil, Gas, CPI)', 'M2: + Consumption\n& Seasonality', 'M3: + Market\nStructure'],
+    datasets: [{
+      label: 'Adjusted R²',
+      data: [0.010, 0.401, 0.426],
+      backgroundColor: [muted + '60', accent2 + 'aa', accent],
+      borderRadius: 2,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` Adj. R² = ${ctx.raw}`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { color: border }, ticks: { font: { size: 9 } } },
+      y: {
+        grid: { color: border },
+        max: 0.55,
+        ticks: { callback: v => v.toFixed(2) }
+      }
+    }
+  }
+});
+
+// ---- CHART 3: SEASON ----
+new Chart(document.getElementById('seasonChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Winter', 'Spring', 'Summer', 'Fall'],
+    datasets: [{
+      data: [14.8, 13.2, 15.6, 13.9],
+      backgroundColor: [accent2, accent + '80', accent3, muted + '80'],
+      borderRadius: 2,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: ctx => ` ${ctx.raw} cents/kWh avg` }
+      }
+    },
+    scales: {
+      x: { grid: { color: border } },
+      y: {
+        grid: { color: border },
+        min: 12,
+        ticks: { callback: v => v + '¢' }
+      }
+    }
+  }
+});
+
+// ---- CHART 4: MARKET TYPE ----
+new Chart(document.getElementById('marketChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Regulated States', 'Deregulated States'],
+    datasets: [{
+      data: [13.1, 16.8],
+      backgroundColor: [accent2, accent],
+      borderColor: surface,
+      borderWidth: 3,
+      hoverOffset: 8
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { padding: 20, font: { size: 11 } }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` Avg ${ctx.raw} cents/kWh`
+        }
+      }
+    },
+    cutout: '65%'
+  }
+});
+
+// ---- CHART 5: EA PRICE vs GRID PRICE ----
+const eaStates = ['HI','CT','MA','RI','NH','CA','NY','VT','ME','NJ',
+                  'WA','OR','CO','AZ','FL','GA','TX','OH','IN','TN'];
+const eaGrid   = [37.0,24.0,22.5,22.0,20.3,24.1,20.3,18.9,21.3,17.2,
+                  10.4,11.6,13.8,13.8,13.1,13.4,12.0,13.1,12.7,11.6];
+const eaCharge = [0.56,0.48,0.48,0.48,0.48,0.48,0.48,0.48,0.48,0.48,
+                  0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.40];
+
+new Chart(document.getElementById('eaPriceChart'), {
+  type: 'bar',
+  data: {
+    labels: eaStates,
+    datasets: [
+      {
+        label: 'Grid Price (cents/kWh)',
+        data: eaGrid,
+        backgroundColor: accent2 + '99',
+        borderRadius: 2,
+        borderSkipped: false,
+        yAxisID: 'y'
+      },
+      {
+        label: 'EA Charging Price ($/kWh x 100)',
+        data: eaCharge.map(v => v * 100),
+        backgroundColor: accent + '99',
+        borderRadius: 2,
+        borderSkipped: false,
+        yAxisID: 'y'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { padding: 20 }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            if (ctx.datasetIndex === 0) return ` Grid: ${ctx.raw}¢/kWh`;
+            return ` EA: $${(ctx.raw/100).toFixed(2)}/kWh`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: { grid: { color: border }, ticks: { font: { size: 10 } } },
+      y: {
+        grid: { color: border },
+        ticks: { callback: v => v + '¢' }
+      }
+    }
+  }
+});
+
+// ---- SCROLL REVEAL ----
+const observer = new IntersectionObserver(
+  entries => entries.forEach(e => {
+    if (e.isIntersecting) e.target.classList.add('visible');
+  }),
+  { threshold: 0.1 }
+);
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
